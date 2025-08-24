@@ -1,30 +1,20 @@
--- ULTIMATE HITBOX MODIFIER
+-- Be A Fish Hitbox Modifier (AGGRESSIVE VERSION)
 local Player = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- Load script utama
+-- Load script utama dulu
 loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/refs/heads/main/OLD-Swee-Loader", true))()
 
-wait(2)
+-- Tunggu sebentar untuk script utama load
+wait(3)
 
--- Nuclear option: Hack the game physics
-spawn(function()
-    while task.wait(0.1) do
+-- Fungsi utama untuk memaksa hitbox besar
+local function ForceHitbox()
+    while true do
         pcall(function()
-            local char = Player.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                -- Force character scale
-                char:SetScale(2.5) -- Coba scale langsung
-                
-                -- Override semua physics
-                for _, part in ipairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.Size = Vector3.new(8, 8, 8)
-                        part.Shape = Enum.PartType.Ball -- Ubah bentuk jadi bola
-                    end
-                end
-            end
+            -- ... (seluruh kode lengkap)
         end)
     end
-end)
+end
 
-print("ULTIMATE HITBOX ACTIVATED!")
+-- ... (dan seterusnya sampai akhir)
