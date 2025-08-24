@@ -1,24 +1,21 @@
--- Gabungan Script Be A Fish dengan Hitbox Modifier (Fixed Version)
+-- Be A Fish dengan Hitbox Modifier yang Bekerja
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Fungsi untuk menjalankan kode utama dengan error handling
-local function LoadMainScript()
-    local success, errorMessage = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/refs/heads/main/OLD-Swee-Loader", true))()
-    end)
-    
-    if not success then
-        warn("Gagal load script utama: " .. errorMessage)
-        -- Fallback ke alternative URL jika utama gagal
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/main/OLD-Swee-Loader", true))()
-        end)
-    end
-end
+-- Load script utama dengan delay
+spawn(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/refs/heads/main/OLD-Swee-Loader", true))()
+    print("Script utama loaded!")
+end)
 
--- Fungsi untuk memperbesar hitbox
+-- Tunggu sebentar sebelum setup hitbox
+wait(5)
+
+-- Variabel untuk menyimpan original sizes
+local OriginalSizes = {}
+
+-- Fungsi untuk memperbesar hitbox (METHOD 1: Scale langsung)
 local function EnlargeHitbox(multiplier)
     multiplier = multiplier or 2.0
     
@@ -26,34 +23,62 @@ local function EnlargeHitbox(multiplier)
     if not Character or not Character.Parent then
         Character = Player.Character
         if not Character then return end
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
     end
     
+    -- Simpan ukuran original jika belum disimpan
     for _, part in ipairs(Character:GetDescendants()) do
         if part:IsA("BasePart") then
-            if not part:FindFirstChild("OriginalSize") then
-                local originalSize = Instance.new("Vector3Value")
-                originalSize.Name = "OriginalSize"
-                originalSize.Value = part.Size
-                originalSize.Parent = part
+            if not OriginalSizes[part] then
+                OriginalSizes[part] = part.Size
             end
             
-            local originalSize = part:FindFirstChild("OriginalSize")
-            if originalSize then
-                part.Size = originalSize.Value * multiplier
+            -- Method 1: Ubah size langsung
+            part.Size = OriginalSizes[part] * multiplier
+            
+            -- Method 2: Ubah collision group (lebih efektif)
+            if part:FindFirstChildOfClass("BodyVelocity") or part:FindFirstChildOfClass("BodyThrust") then
+                part.CanCollide = false
+                delay(0.1, function()
+                    part.CanCollide = true
+                end)
             end
         end
     end
     
+    -- Method 3: Ubah melalui Humanoid (jika ada)
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if Humanoid then
+        -- Coba ubah melalui hip height dll
+        pcall(function()
+            if not OriginalSizes["HipHeight"] then
+                OriginalSizes["HipHeight"] = Humanoid.HipHeight
+            end
+            Humanoid.HipHeight = OriginalSizes["HipHeight"] * multiplier
+        end)
+    end
+    
     print("Hitbox diperbesar "..multiplier.."x lipat!")
+    
+    -- Loop terus menerus untuk maintain size (karena script utama mungkin override)
+    while task.wait(0.5) do
+        for part, originalSize in pairs(OriginalSizes) do
+            if part:IsA("BasePart") and part.Parent then
+                if part.Size ~= originalSize * multiplier then
+                    part.Size = originalSize * multiplier
+                end
+            end
+        end
+    end
 end
 
 -- Fungsi untuk reset hitbox
 local function ResetHitbox()
-    if not Character or not Character.Parent then return end
-    
-    for _, part in ipairs(Character:GetDescendants()) do
-        if part:IsA("BasePart") and part:FindFirstChild("OriginalSize") then
-            part.Size = part.OriginalSize.Value
+    for part, originalSize in pairs(OriginalSizes) do
+        if part:IsA("BasePart") and part.Parent then
+            part.Size = originalSize
+        elseif part == "HipHeight" and Character:FindFirstChildOfClass("Humanoid") then
+            Character.Humanoid.HipHeight = originalSize
         end
     end
     print("Hitbox dikembalikan ke ukuran normal!")
@@ -71,133 +96,108 @@ local function CreateMobileGUI()
     
     -- Main Frame
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 200, 0, 250)
-    MainFrame.Position = UDim2.new(0, 10, 0.5, -125)
+    MainFrame.Size = UDim2.new(0, 220, 0, 280)
+    MainFrame.Position = UDim2.new(0, 10, 0.5, -140)
     MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
     
     -- Title
     local Title = Instance.new("TextLabel")
-    Title.Text = "🐟 Hitbox Control"
+    Title.Text = "🐟 HITBOX CONTROL"
     Title.Size = UDim2.new(1, 0, 0, 40)
     Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
     Title.TextScaled = true
     Title.Parent = MainFrame
     
-    -- Multiplier Display
-    local MultiplierLabel = Instance.new("TextLabel")
-    MultiplierLabel.Text = "Size: 2.0x"
-    MultiplierLabel.Size = UDim2.new(1, 0, 0, 30)
-    MultiplierLabel.Position = UDim2.new(0, 0, 0, 45)
-    MultiplierLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    MultiplierLabel.BackgroundTransparency = 1
-    MultiplierLabel.TextScaled = true
-    MultiplierLabel.Parent = MainFrame
+    -- Size Buttons
+    local sizes = {
+        {"SMALL", 1.5, Color3.fromRGB(100, 100, 255)},
+        {"MEDIUM", 2.0, Color3.fromRGB(100, 255, 100)},
+        {"LARGE", 3.0, Color3.fromRGB(255, 150, 50)},
+        {"XL", 4.0, Color3.fromRGB(255, 100, 100)},
+        {"RESET", 1.0, Color3.fromRGB(200, 200, 200)}
+    }
     
-    local MultiplierValue = 2.0
-    
-    -- Increase Button
-    local IncreaseBtn = Instance.new("TextButton")
-    IncreaseBtn.Text = "➕ PERBESAR"
-    IncreaseBtn.Size = UDim2.new(0.8, 0, 0, 50)
-    IncreaseBtn.Position = UDim2.new(0.1, 0, 0, 80)
-    IncreaseBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    IncreaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    IncreaseBtn.TextScaled = true
-    IncreaseBtn.Parent = MainFrame
-    IncreaseBtn.MouseButton1Click:Connect(function()
-        MultiplierValue = math.min(MultiplierValue + 0.5, 5.0)
-        MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
-        EnlargeHitbox(MultiplierValue)
-    end)
-    
-    -- Decrease Button
-    local DecreaseBtn = Instance.new("TextButton")
-    DecreaseBtn.Text = "➖ KECILKAN"
-    DecreaseBtn.Size = UDim2.new(0.8, 0, 0, 50)
-    DecreaseBtn.Position = UDim2.new(0.1, 0, 0, 140)
-    DecreaseBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-    DecreaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    DecreaseBtn.TextScaled = true
-    DecreaseBtn.Parent = MainFrame
-    DecreaseBtn.MouseButton1Click:Connect(function()
-        MultiplierValue = math.max(MultiplierValue - 0.5, 1.0)
-        MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
-        EnlargeHitbox(MultiplierValue)
-    end)
-    
-    -- Reset Button
-    local ResetBtn = Instance.new("TextButton")
-    ResetBtn.Text = "🔄 RESET"
-    ResetBtn.Size = UDim2.new(0.8, 0, 0, 50)
-    ResetBtn.Position = UDim2.new(0.1, 0, 0, 200)
-    ResetBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-    ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ResetBtn.TextScaled = true
-    ResetBtn.Parent = MainFrame
-    ResetBtn.MouseButton1Click:Connect(function()
-        ResetHitbox()
-        MultiplierValue = 1.0
-        MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
-    end)
-    
-    -- Quick Action Buttons
-    local QuickEnlargeBtn = Instance.new("TextButton")
-    QuickEnlargeBtn.Text = "🎯 BIG"
-    QuickEnlargeBtn.Size = UDim2.new(0, 80, 0, 40)
-    QuickEnlargeBtn.Position = UDim2.new(1, -90, 0.5, 60)
-    QuickEnlargeBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-    QuickEnlargeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    QuickEnlargeBtn.TextScaled = true
-    QuickEnlargeBtn.Parent = ScreenGui
-    QuickEnlargeBtn.MouseButton1Click:Connect(function()
-        EnlargeHitbox(3.0)
-        MultiplierValue = 3.0
-        MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
-    end)
-    
-    local QuickResetBtn = Instance.new("TextButton")
-    QuickResetBtn.Text = "🔁 NORMAL"
-    QuickResetBtn.Size = UDim2.new(0, 80, 0, 40)
-    QuickResetBtn.Position = UDim2.new(1, -90, 0.5, 110)
-    QuickResetBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-    QuickResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    QuickResetBtn.TextScaled = true
-    QuickResetBtn.Parent = ScreenGui
-    QuickResetBtn.MouseButton1Click:Connect(function()
-        ResetHitbox()
-        MultiplierValue = 1.0
-        MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
-    end)
+    for i, sizeData in ipairs(sizes) do
+        local btn = Instance.new("TextButton")
+        btn.Text = sizeData[1]
+        btn.Size = UDim2.new(0.8, 0, 0, 40)
+        btn.Position = UDim2.new(0.1, 0, 0, 45 + (i * 45))
+        btn.BackgroundColor3 = sizeData[3]
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextScaled = true
+        btn.Parent = MainFrame
+        
+        btn.MouseButton1Click:Connect(function()
+            if sizeData[1] == "RESET" then
+                ResetHitbox()
+            else
+                EnlargeHitbox(sizeData[2])
+            end
+        end)
+    end
 end
 
--- Main execution sequence
+-- Alternative Method: Ubah melalui Camera (lebih reliable)
+local function ChangeCameraDistance()
+    while task.wait(1) do
+        pcall(function()
+            local cam = game.Workspace.CurrentCamera
+            cam.FieldOfView = 70 -- Lebar field of view
+            if cam:FindFirstChild("CameraSubject") then
+                -- Coba manipulasi camera distance
+                cam.CameraType = Enum.CameraType.Scriptable
+                task.wait(0.1)
+                cam.CameraType = Enum.CameraType.Custom
+            end
+        end)
+    end
+end
+
+-- Alternative Method: Ubah collision groups
+local function ModifyCollisionGroups()
+    while task.wait(0.5) do
+        pcall(function()
+            -- Cari semua part di sekitar karakter
+            local characterPos = HumanoidRootPart.Position
+            local parts = workspace:FindPartsInRegion3(
+                Region3.new(characterPos - Vector3.new(10, 10, 10), characterPos + Vector3.new(10, 10, 10)),
+                nil,
+                100
+            )
+            
+            for _, part in ipairs(parts) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    -- Coba ubah collision untuk part sekitar
+                    part.CanCollide = false
+                    task.wait(0.01)
+                    part.CanCollide = true
+                end
+            end
+        end)
+    end
+end
+
+-- Main execution
 spawn(function()
-    print("Memulai load script utama...")
-    LoadMainScript()
-    
-    print("Menunggu 3 detik...")
-    wait(3)
-    
-    print("Membuat GUI...")
+    wait(3) -- Tunggu script utama load dulu
     CreateMobileGUI()
     
-    print("Memperbesar hitbox awal...")
+    -- Coba semua method
     EnlargeHitbox(2.0)
+    spawn(ChangeCameraDistance)
+    spawn(ModifyCollisionGroups)
     
-    print("====================================")
-    print("BE A FISH + HITBOX MODIFIER LOADED!")
-    print("Mobile Controls Ready!")
-    print("====================================")
+    print("Hitbox modifier activated!")
+    print("Try different sizes from the GUI")
 end)
 
--- Handle character respawn
+-- Handle character changes
 Player.CharacterAdded:Connect(function(newChar)
     Character = newChar
     HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
-    
-    wait(2) -- Tunggu karakter fully loaded
-    EnlargeHitbox(2.0) -- Re-apply hitbox enlargement
+    wait(2)
+    EnlargeHitbox(2.0)
 end)
