@@ -1,23 +1,35 @@
--- Gabungan Script Be A Fish dengan Hitbox Modifier (Mobile Version)
+-- Gabungan Script Be A Fish dengan Hitbox Modifier (Fixed Version)
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
--- ===== KODE AWAL =====
-loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/refs/heads/main/OLD-Swee-Loader", true))()
--- =====================
-
--- Tunggu sebentar agar script utama load
-wait(3)
+-- Fungsi untuk menjalankan kode utama dengan error handling
+local function LoadMainScript()
+    local success, errorMessage = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/refs/heads/main/OLD-Swee-Loader", true))()
+    end)
+    
+    if not success then
+        warn("Gagal load script utama: " .. errorMessage)
+        -- Fallback ke alternative URL jika utama gagal
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/AkinaRulezx/beafish/main/OLD-Swee-Loader", true))()
+        end)
+    end
+end
 
 -- Fungsi untuk memperbesar hitbox
 local function EnlargeHitbox(multiplier)
-    multiplier = multiplier or 2.0 -- Default 2x lipat
+    multiplier = multiplier or 2.0
     
-    -- Cari semua parts yang perlu diperbesar
+    -- Pastikan karakter masih ada
+    if not Character or not Character.Parent then
+        Character = Player.Character
+        if not Character then return end
+    end
+    
     for _, part in ipairs(Character:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            -- Simpan size original terlebih dahulu
+        if part:IsA("BasePart") then
             if not part:FindFirstChild("OriginalSize") then
                 local originalSize = Instance.new("Vector3Value")
                 originalSize.Name = "OriginalSize"
@@ -25,7 +37,6 @@ local function EnlargeHitbox(multiplier)
                 originalSize.Parent = part
             end
             
-            -- Perbesar size part
             local originalSize = part:FindFirstChild("OriginalSize")
             if originalSize then
                 part.Size = originalSize.Value * multiplier
@@ -33,26 +44,13 @@ local function EnlargeHitbox(multiplier)
         end
     end
     
-    -- Perbesar juga collision group jika ada
-    if HumanoidRootPart then
-        if not HumanoidRootPart:FindFirstChild("OriginalSize") then
-            local originalSize = Instance.new("Vector3Value")
-            originalSize.Name = "OriginalSize"
-            originalSize.Value = HumanoidRootPart.Size
-            originalSize.Parent = HumanoidRootPart
-        end
-        
-        local originalSize = HumanoidRootPart:FindFirstChild("OriginalSize")
-        if originalSize then
-            HumanoidRootPart.Size = originalSize.Value * multiplier
-        end
-    end
-    
     print("Hitbox diperbesar "..multiplier.."x lipat!")
 end
 
--- Fungsi untuk mengembalikan hitbox ke ukuran normal
+-- Fungsi untuk reset hitbox
 local function ResetHitbox()
+    if not Character or not Character.Parent then return end
+    
     for _, part in ipairs(Character:GetDescendants()) do
         if part:IsA("BasePart") and part:FindFirstChild("OriginalSize") then
             part.Size = part.OriginalSize.Value
@@ -61,9 +59,8 @@ local function ResetHitbox()
     print("Hitbox dikembalikan ke ukuran normal!")
 end
 
--- GUI Mobile-Friendly dengan button besar
+-- GUI Mobile-Friendly
 local function CreateMobileGUI()
-    -- Hapus GUI lama jika ada
     if Player.PlayerGui:FindFirstChild("MobileHitboxControl") then
         Player.PlayerGui.MobileHitboxControl:Destroy()
     end
@@ -101,7 +98,7 @@ local function CreateMobileGUI()
     
     local MultiplierValue = 2.0
     
-    -- Increase Button (Besar untuk mobile)
+    -- Increase Button
     local IncreaseBtn = Instance.new("TextButton")
     IncreaseBtn.Text = "➕ PERBESAR"
     IncreaseBtn.Size = UDim2.new(0.8, 0, 0, 50)
@@ -116,7 +113,7 @@ local function CreateMobileGUI()
         EnlargeHitbox(MultiplierValue)
     end)
     
-    -- Decrease Button (Besar untuk mobile)
+    -- Decrease Button
     local DecreaseBtn = Instance.new("TextButton")
     DecreaseBtn.Text = "➖ KECILKAN"
     DecreaseBtn.Size = UDim2.new(0.8, 0, 0, 50)
@@ -142,24 +139,11 @@ local function CreateMobileGUI()
     ResetBtn.Parent = MainFrame
     ResetBtn.MouseButton1Click:Connect(function()
         ResetHitbox()
-        MultiplierValue = 2.0
+        MultiplierValue = 1.0
         MultiplierLabel.Text = "Size: "..MultiplierValue.."x"
     end)
     
-    -- Toggle Button untuk show/hide GUI
-    local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Text = "⚙️"
-    ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-    ToggleBtn.Position = UDim2.new(1, -60, 0, 10)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.TextScaled = true
-    ToggleBtn.Parent = ScreenGui
-    ToggleBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = not MainFrame.Visible
-    end)
-    
-    -- Quick Action Buttons (Untuk kontrol cepat)
+    -- Quick Action Buttons
     local QuickEnlargeBtn = Instance.new("TextButton")
     QuickEnlargeBtn.Text = "🎯 BIG"
     QuickEnlargeBtn.Size = UDim2.new(0, 80, 0, 40)
@@ -189,54 +173,31 @@ local function CreateMobileGUI()
     end)
 end
 
--- Touch Gesture untuk mobile
-local TouchService = game:GetService("TouchService")
-local lastTouchTime = 0
-
-TouchService.TouchStarted:Connect(function(touch, processed)
-    if not processed then
-        local currentTime = tick()
-        
-        -- Double tap detection (untuk reset)
-        if currentTime - lastTouchTime < 0.5 then
-            ResetHitbox()
-        end
-        
-        -- Triple tap detection (untuk enlarge maksimal)
-        if currentTime - lastTouchTime < 0.3 then
-            EnlargeHitbox(5.0)
-        end
-        
-        lastTouchTime = currentTime
-    end
-end)
-
--- Auto create GUI dan apply hitbox setelah script utama load
+-- Main execution sequence
 spawn(function()
-    wait(5) -- Tunggu lebih lama untuk memastikan script utama fully loaded
-    CreateMobileGUI()
-    EnlargeHitbox(2.0) -- Auto enlarge 2x saat start
+    print("Memulai load script utama...")
+    LoadMainScript()
     
-    -- Notifikasi untuk pengguna mobile
+    print("Menunggu 3 detik...")
+    wait(3)
+    
+    print("Membuat GUI...")
+    CreateMobileGUI()
+    
+    print("Memperbesar hitbox awal...")
+    EnlargeHitbox(2.0)
+    
     print("====================================")
-    print("MOBILE BE A FISH LOADED!")
-    print("Touch Controls:")
-    print("- Double Tap: Reset Hitbox")
-    print("- Triple Tap: Max Size (5x)")
-    print("- Use Buttons: Fine Control")
+    print("BE A FISH + HITBOX MODIFIER LOADED!")
+    print("Mobile Controls Ready!")
     print("====================================")
 end)
 
--- Vibrate feedback untuk mobile (jika supported)
-local function Vibrate()
-    pcall(function()
-        game:GetService("VibrationService"):Vibrate(0.1)
-    end)
-end
-
--- Connect vibration ke button actions
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        Vibrate()
-    end
+-- Handle character respawn
+Player.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    wait(2) -- Tunggu karakter fully loaded
+    EnlargeHitbox(2.0) -- Re-apply hitbox enlargement
 end)
